@@ -65,7 +65,7 @@ class BasicPIDController:
 
     def update_pid(self, position, dt=0.033):
         """Perform PID calculation and return control output."""
-        error =  position - self.setpoint # Compute error
+        error =  position[0] - self.setpoint # Compute error
         error = error * 100  # Scale error for easier tuning (if needed)
         # Proportional term
         P = self.Kp * error
