@@ -57,18 +57,19 @@ class BasicPIDController:
             servo_angle = self.neutral_angle + angle
             servo_angle = int(np.clip(servo_angle, 0, 30))
             try:
-                servo_pwm = int((40/3) * servo_angle + 100)
+                servo_pwm = int((10/3) * servo_angle + 100)
+                print(servo_pwm)
                 self.servo.write(bytes([servo_pwm]))
             except Exception:
                 print("[SERVO] Send failed")
 
     def update_pid(self, position, dt=0.033):
         """Perform PID calculation and return control output."""
-        error =  self.setpoint - position # Compute error
+        error =  position - self.setpoint # Compute error
         error = error * 100  # Scale error for easier tuning (if needed)
         # Proportional term
         P = self.Kp * error
-        # Integral term accumulations
+        # Integral term accumulation
         self.integral += error * dt
         I = self.Ki * self.integral
         # Derivative term calculation
