@@ -8,7 +8,7 @@ from tkinter import ttk
 import matplotlib.pyplot as plt
 from threading import Thread
 import queue
-from ball_detection import detect_ball_x
+from ball_detection import detect_ball_x, detect_ball_y
 
 class BasicPIDController:
     def __init__(self, config_file="config.json"):
@@ -92,10 +92,12 @@ class BasicPIDController:
                 continue
             frame = cv2.resize(frame, (320, 240))
             # Detect ball position in frame
-            found, x_normalized, vis_frame = detect_ball_x(frame)
-            if found:
+            found_x, x_normalized, vis_frame = detect_ball_x(frame)
+            found_y, y_normalized, vis_frame = detect_ball_y(frame)
+            if found_x and found_y:
                 # Convert normalized to meters using scale
-                position_m = x_normalized * self.scale_factor
+                position_m = (x_normalized * self.scale_factor, y_normalized * self.scale_factor)
+
                 # Always keep latest measurement only
                 try:
                     if self.position_queue.full():

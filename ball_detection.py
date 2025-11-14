@@ -88,10 +88,13 @@ class BallDetector:
         
         # Convert pixel position to meters from center
         center_x = frame.shape[1] // 2  # Frame center x-coordinate
+        center_y = frame.shape[0] // 2
         normalized_x = (x - center_x) / center_x  # Normalize to -1 to +1 range
-        position_m = normalized_x * self.scale_factor  # Convert to meters
+        normalized_y = (y - center_y) / center_y  # Normalize to -1 to +1 range
+        position_m_x = normalized_x * self.scale_factor  # Convert to meters
+        position_m_y = normalized_y * self.scale_factor  # Convert to meters
         
-        return True, (int(x), int(y)), radius, position_m
+        return True, (int(x), int(y)), radius, (position_m_x, position_m_y)
 
     def draw_detection(self, frame, show_info=True):
         """Detect ball and draw detection overlay on frame.
@@ -127,7 +130,9 @@ class BallDetector:
                 # Display ball position information
                 cv2.putText(overlay, f"x: {center[0]}", (center[0] - 30, center[1] - 40),
                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
-                cv2.putText(overlay, f"pos: {position_m:.4f}m", (center[0] - 40, center[1] - 20),
+                cv2.putText(overlay, f"pos: {position_m[0]:.4f}m", (center[0] - 40, center[1] - 20),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+                cv2.putText(overlay, f"pos: {position_m[1]:.4f}m", (center[0] - 40, center[1] - 40),
                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
         
         return overlay, found, position_m
@@ -155,12 +160,43 @@ def detect_ball_x(frame):
     
     if found:
         # Convert back to normalized coordinates for legacy compatibility
-        x_normalized = position_m / detector.scale_factor if detector.scale_factor != 0 else 0.0
+        x_normalized = position_m[0] / detector.scale_factor if detector.scale_factor != 0 else 0.0
         x_normalized = np.clip(x_normalized, -1.0, 1.0)  # Ensure within bounds
     else:
         x_normalized = 0.0
     
     return found, x_normalized, vis_frame
+
+
+# Legacy function for backward compatibility with existing code
+def detect_ball_y(frame):
+    """Legacy function that matches the old ball_detection.py interface.
+    
+    This function maintains compatibility with existing code that expects
+    the original function signature and return format.
+    
+    Args:
+        frame: Input BGR image frame
+        
+    Returns:
+        found (bool): True if ball detected
+        x_normalized (float): Normalized x position (-1 to +1)
+        vis_frame (array): Frame with detection overlay
+    """
+    # Create detector instance using default config
+    detector = BallDetector()
+    
+    # Get detection results with visual overlay
+    vis_frame, found, position_m = detector.draw_detection(frame)
+    
+    if found:
+        # Convert back to normalized coordinates for legacy compatibility
+        y_normalized = position_m[1] / detector.scale_factor if detector.scale_factor != 0 else 0.0
+        y_normalized = np.clip(y_normalized, -1.0, 1.0)  # Ensure within bounds
+    else:
+        y_normalized = 0.0
+    
+    return found, y_normalized, vis_frame
 
 # For testing/calibration when run directly
 def main():
@@ -185,7 +221,7 @@ def main():
         
         # Show detection info in console
         if found:
-            print(f"Ball detected at {position_m:.4f}m from center")
+            print("Ball detected at {}, {} m from center" .format(*position_m))
         
         # Display frame with detection overlay
         cv2.imshow("Ball Detection Test", vis_frame)
