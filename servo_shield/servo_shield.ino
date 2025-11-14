@@ -4,17 +4,17 @@
 #define SERVO2   4
 #define SERVO3   8
 
-static const int SERVO_MAX = 500; // CCW
-static const int SERVO_MIN = 100; // CW
-static const int SERVO_MID = (SERVO_MAX + SERVO_MIN) / 2;
+static const int ARM_MAX = 200; // physical limit of the arms
+static const int SERVO_MAX = 500; // CCW 180 deg
+static const int SERVO_MIN = 100; // CW 0 deg
+static const int SERVO_MID = (ARM_MAX + SERVO_MIN) / 2;
 static const int PWM_FREQ = 50;
-
-int targetPWM = SERVO_MID;
+int x = 100;
+int targetAngle = 0;
 bool newCommand = false;
 
-int x = 0;
-
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
+
 
 void setup() {
     Serial.begin(9600);
@@ -23,29 +23,30 @@ void setup() {
     pwm.setPWMFreq(PWM_FREQ);
 
     // move all servos to middle position
-    pwm.setPWM(SERVO1, 0, SERVO_MID);
-    pwm.setPWM(SERVO2, 0, SERVO_MID);
-    pwm.setPWM(SERVO3, 0, SERVO_MID);
-    delay(1000);
+    // pwm.setPWM(SERVO1, 0, SERVO_MID);
+    // pwm.setPWM(SERVO2, 0, SERVO_MID);
+    // pwm.setPWM(SERVO3, 0, SERVO_MID);
+    // delay(1000);
 }
 
 void loop() {
+    // move all servos once
+    if (Serial.available() > 0) {
+        int receivedAngle = Serial.read();
 
-  if (Serial.available() > 0) {
-    // Read the incoming byte
-    int receivedPWM = Serial.read();
-
-    // Validate PWM range
-    if (receivedPWM >= SERVO_MIN && receivedPWM <= SERVO_MAX) {
-      targetPWM = receivedPWM;
-      newCommand = true;
+        if (receivedAngle >= SERVO_MIN && receivedAngle <= ARM_MAX) {
+            targetAngle = receivedAngle;
+            newCommand = true;
+        }
     }
-  }
 
-  if (newCommand) {
-        // move all servos once
-    pwm.setPWM(SERVO1, 0, targetPWM);
-    // pwm.setPWM(SERVO2, 0, targetPWM);
-    // pwm.setPWM(SERVO3, 0, targetPWM + x);
-  }
+    if (newCommand) {
+        pwm.setPWM(SERVO1, 0, targetAngle);
+        newCommand = false;
+    }
+
+    pwm.setPWM(SERVO2, 0, SERVO_MID);
+    pwm.setPWM(SERVO3, 0, SERVO_MID);
+
+    delay(10);
 }
