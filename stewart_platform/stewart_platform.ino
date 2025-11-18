@@ -33,10 +33,10 @@ void loop() {
     // read target angles from serial
     if (Serial.available() > 3) {
         int bytesRead = Serial.readBytes(receivedAngles, 3);
-        receviedAngles[bytesRead] = '\0';
+        receivedAngles[bytesRead] = '\0';
     }
 
-    Serial.println(receivedAngle);
+    Serial.println(receivedAngles);
 
     // // update target angles for the servos
     // if (newCommand) {
