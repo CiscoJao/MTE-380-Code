@@ -157,7 +157,8 @@ class BasicPIDController:
 
                 setpoint_xy = (self.setpoint_x, self.setpoint_y)
                 # Compute control output using PID
-                control_output = self.update_pid(position, setpoint_xy, dt=dt)
+                # control_output = self.update_pid(position, setpoint_xy, dt=dt)
+                control_output = np.zeros(self.num_axes)
                 # Send control command to servo (real or simulated)
                 self.send_servo_angles(control_output)
                 # Log results for plotting
