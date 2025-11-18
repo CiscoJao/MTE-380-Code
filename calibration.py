@@ -20,7 +20,7 @@ class SimpleAutoCalibrator:
         self.PLATFORM_DIAM = 0.3  # Known beam length in meters based on platform diamater
         
         # Camera configuration
-        self.CAM_INDEX = 0  # Default camera index
+        self.CAM_INDEX = 1  # Default camera index
         self.FRAME_W, self.FRAME_H = 640, 480  # Frame dimensions
         
         # Calibration state tracking

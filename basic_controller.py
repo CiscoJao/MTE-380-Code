@@ -21,7 +21,9 @@ class BasicPIDController:
         self.Ki = 0.0
         self.Kd = 0.0
         # Scale factor for converting from pixels to meters
-        self.scale_factor = self.config['calibration']['pixel_to_meter_ratio_x'] * self.config['camera']['frame_width'] / 2
+        self.scale_factor_x = self.config['calibration']['pixel_to_meter_ratio_x'] * self.config['camera']['frame_width'] / 2
+        self.scale_factor_y = self.config['calibration']['pixel_to_meter_ratio_y'] * self.config['camera']['frame_height'] / 2
+
         # Servo port name and center angle
         self.servo_port = self.config['servo']['port']
         self.neutral_angle = self.config['servo']['neutral_angle']
@@ -32,12 +34,12 @@ class BasicPIDController:
         self.setpoint_y = 0.0
 
         self.num_axes = 3
-        self.integral = np.zeros(self.num_axes, dtype=float)
-        self.prev_error = np.zeros(self.num_axes, dtype=float)
+        self.integral = np.zeros(self.num_axes)
+        self.prev_error = np.zeros(self.num_axes)
 
-        self.Kp_arr = np.ones(self.num_axes) * self.Kp
-        self.Ki_arr = np.ones(self.num_axes) * self.Ki
-        self.Kd_arr = np.ones(self.num_axes) * self.Kd
+        self.Kp_arr = []
+        self.Ki_arr = []
+        self.Kd_arr = []
 
         # Data logs for plotting results
         self.time_log = []
@@ -83,19 +85,29 @@ class BasicPIDController:
             except Exception:
                 print("[SERVO] Send failed")
 
-    def update_pid(self, position, dt=0.033):
+    def update_pid(self, position, dt):
 
         pos_vec = np.array([position[0], position[1]])
         set_vec = np.array([self.setpoint_x, self.setpoint_y])
         pos_abc = self.M.dot(pos_vec)
         set_abc = self.M.dot(set_vec)
 
+        print("POSITION AND SETPOINT!!!!!!!!!")
+        print("pos_vec = ", pos_vec)
+        print("set_abc = ", set_abc)
+
+
         outputs = np.zeros(self.num_axes, dtype=float)
         for i in range(self.num_axes):
             error =  pos_abc[i] - set_abc[i] # Compute error
-            error = error * 100  # Scale error for easier tuning (if needed)
+
+            print("error = ", error)
+
+            error = error * 40  # Scale error for easier tuning (if needed)
+
             # Proportional term
             P = self.Kp_arr[i] * error
+            print(self.Kp_arr[i])
             # Integral term accumulation
             self.integral[i] += error * dt
             I = self.Ki_arr[i] * self.integral[i]
@@ -124,7 +136,8 @@ class BasicPIDController:
             found_y, y_normalized, vis_frame = detect_ball_y(frame)
             if found_x and found_y:
                 # Convert normalized to meters using scale
-                position_m = (x_normalized * self.scale_factor, y_normalized * self.scale_factor)
+                position_m = (x_normalized * self.scale_factor_x, y_normalized * self.scale_factor_y)
+                print("x_normalized = ", x_normalized)
 
                 # Always keep latest measurement only
                 try:
@@ -146,14 +159,18 @@ class BasicPIDController:
         if not self.connect_servo():
             print("[ERROR] No servo - running in simulation mode")
         self.start_time = time.time()
+        last_time = self.start_time
         while self.running:
             try:
                 # Wait for latest ball position from camera
                 position = self.position_queue.get(timeout=0.1)
 
+                now = time.time()
+                dt = now - last_time if last_time is not None else 0.033
+                last_time = now
                 setpoint_xy = (self.setpoint_x, self.setpoint_y)
                 # Compute control output using PID
-                control_output = self.update_pid(position)
+                control_output = self.update_pid(position, dt)
                 # Send control command to servo (real or simulated)
 
                 print(control_output)
@@ -187,7 +204,7 @@ class BasicPIDController:
         # Kp slider
         ttk.Label(self.root, text="Kp (Proportional)", font=("Arial", 12)).pack()
         self.kp_var = tk.DoubleVar(value=self.Kp)
-        kp_slider = ttk.Scale(self.root, from_=0, to=100, variable=self.kp_var,
+        kp_slider = ttk.Scale(self.root, from_=0, to=2, variable=self.kp_var,
                               orient=tk.HORIZONTAL, length=500)
         kp_slider.pack(pady=5)
         self.kp_label = ttk.Label(self.root, text=f"Kp: {self.Kp:.1f}", font=("Arial", 11))
@@ -205,7 +222,7 @@ class BasicPIDController:
         # Kd slider
         ttk.Label(self.root, text="Kd (Derivative)", font=("Arial", 12)).pack()
         self.kd_var = tk.DoubleVar(value=self.Kd)
-        kd_slider = ttk.Scale(self.root, from_=0, to=20, variable=self.kd_var,
+        kd_slider = ttk.Scale(self.root, from_=0, to=10, variable=self.kd_var,
                               orient=tk.HORIZONTAL, length=500)
         kd_slider.pack(pady=5)
         self.kd_label = ttk.Label(self.root, text=f"Kd: {self.Kd:.1f}", font=("Arial", 11))
@@ -256,6 +273,10 @@ class BasicPIDController:
             self.Ki = self.ki_var.get()
             self.Kd = self.kd_var.get()
 
+            self.Kp_arr = np.ones(self.num_axes) * self.Kp
+            self.Ki_arr = np.ones(self.num_axes) * self.Ki
+            self.Kd_arr = np.ones(self.num_axes) * self.Kd
+
             self.setpoint_x = self.setpoint_x_var.get()
             self.setpoint_y = self.setpoint_y_var.get()
 
@@ -272,7 +293,7 @@ class BasicPIDController:
 
     def reset_integral(self):
         """Clear integral error in PID (button handler)."""
-        self.integral = 0.0
+        self.integral = np.zeros(self.num_axes, dtype=float)
         print("[RESET] Integral term reset")
 
     def plot_results(self):
