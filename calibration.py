@@ -2,7 +2,7 @@
 # Interactive calibration tool for color detection, geometry, and servo limits
 # Generates config.json file for use with ball tracking controller
 
-# Updating to calibrate for two axes X and Y
+""" Updated to calibrate for two axes X and Y """
 
 import cv2
 import numpy as np
@@ -295,7 +295,7 @@ class SimpleAutoCalibrator:
         # Phase-specific instruction text
         phase_text = {
             "color": "Click on ball to sample colors. Press 'c' when done.",
-            "geometry": "Click on beam endpoints (2 points)",
+            "geometry": "Click on platform endpoints (4 points)",
             "limits": "Press 'l' to find limits automatically",
             "complete": "Calibration complete! Press 's' to save"
         }
@@ -320,6 +320,9 @@ class SimpleAutoCalibrator:
         # Draw line between beam endpoints if both are selected
         if len(self.peg_points) == 2:
             cv2.line(overlay, self.peg_points[0], self.peg_points[1], (255, 0, 0), 2)
+        elif len(self.peg_points) == 4:
+            cv2.line(overlay, self.peg_points[0], self.peg_points[1], (255, 0, 0), 2)
+            cv2.line(overlay, self.peg_points[2], self.peg_points[3], (255, 0, 0), 2)
         
         # Show real-time ball detection if color calibration is complete
         if self.lower_hsv:
