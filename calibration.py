@@ -17,7 +17,7 @@ class SimpleAutoCalibrator:
     def __init__(self):
         """Initialize calibration parameters and default values."""
         # Physical system parameters
-        self.PLATFORM_DIAM = 0.2  # Known beam length in meters based on platform diamater
+        self.PLATFORM_DIAM = 0.3  # Known beam length in meters based on platform diamater
         
         # Camera configuration
         self.CAM_INDEX = 0  # Default camera index
@@ -33,16 +33,15 @@ class SimpleAutoCalibrator:
         self.upper_hsv = None  # Upper HSV bound for ball detection
         
         # Geometry calibration data
-        self.peg_points_x = []  # platform endpoint pixel coordinates for x-axis
-        self.peg_points_y = []  # platform endpoint pixel coordinates for y-axis
+        self.peg_points = []  # platform endpoint pixel coordinates for both axes, 4 total
         self.pixel_to_meter_ratio_x = None  # Conversion ratio from pixels to meters
         self.pixel_to_meter_ratio_y = None
         
         # Servo hardware configuration
         self.servo = None  # Serial connection to servo
         self.servo_port = "COM3"  # Servo communication port OVER HERE!! CHECK THIS WHEN THINGS DONT WORK!!
-        self.max_angle = 30;
-        self.min_angle = 0;
+        self.max_angle = 30
+        self.min_angle = 0
         self.neutral_angle = int((self.max_angle + self.min_angle) / 2)
         
         # Position limit results
@@ -88,11 +87,11 @@ class SimpleAutoCalibrator:
             if self.phase == "color":
                 # Color sampling phase - collect HSV samples at click point
                 self.sample_color(x, y)
-            elif self.phase == "geometry" and len(self.peg_points) < 2:
+            elif self.phase == "geometry" and len(self.peg_points) < 4:
                 # Geometry phase - collect beam endpoint coordinates
                 self.peg_points.append((x, y))
                 print(f"[GEO] Peg {len(self.peg_points)} selected")
-                if len(self.peg_points) == 2:
+                if len(self.peg_points) == 4:
                     self.calculate_geometry()
 
     # X AND Y HERE ARE NOT THE SAME AS X AND Y FOR THE AXES CALIBRATION
@@ -143,14 +142,17 @@ class SimpleAutoCalibrator:
 
     def calculate_geometry(self):
         """Calculate pixel-to-meter conversion ratio from beam endpoint coordinates."""
-        p1, p2 = self.peg_points_x
+        x1, x2, y1, y2 = self.peg_points
         
-        # Calculate pixel distance between beam endpoints
-        pixel_distance = math.sqrt((p2[0] - p1[0])**2 + (p2[1] - p1[1])**2)
+        # Calculate pixel distance between axis endpoints
+        dist_x = math.dist(x1, x2)
+        dist_y = math.dist(y1, y2)
         
         # Convert to meters using known beam length
-        self.pixel_to_meter_ratio = self.PLATFORM_DIAM / pixel_distance
-        print(f"[GEO] Pixel-to-meter ratio: {self.pixel_to_meter_ratio:.6f}")
+        self.pixel_to_meter_ratio_x = self.PLATFORM_DIAM / dist_x
+        self.pixel_to_meter_ratio_y = self.PLATFORM_DIAM / dist_y
+        print(f"[GEO] Pixel-to-meter ratio: {self.pixel_to_meter_ratio_x:.6f}")
+        print(f"[GEO] Pixel-to-meter ratio: {self.pixel_to_meter_ratio_y:.6f}")
         
         # Advance to limits calibration phase
         self.phase = "limits"
@@ -179,7 +181,7 @@ class SimpleAutoCalibrator:
         
         # Find contours in mask
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if not contours:
+        if not contours:    
             return None
         
         # Get largest contour (assumed to be ball)
@@ -192,10 +194,13 @@ class SimpleAutoCalibrator:
         
         # Convert pixel position to meters from center
         center_x = frame.shape[1] // 2
+        center_y = frame.shape[0] // 2
         pixel_offset = x - center_x
-        meters_offset = pixel_offset * self.pixel_to_meter_ratio
         
-        return meters_offset
+        mx = (x - center_x) * self.pixel_to_meter_x
+        my = (y - center_   y) * self.pixel_to_meter_y
+
+        return (mx, my)
 
     def find_limits_automatically(self):
         """Use servo motor to automatically find ball position limits."""
@@ -260,7 +265,8 @@ class SimpleAutoCalibrator:
                 "upper_hsv": [float(x) for x in self.upper_hsv] if self.upper_hsv else None
             },
             "calibration": {
-                "pixel_to_meter_ratio": float(self.pixel_to_meter_ratio) if self.pixel_to_meter_ratio else None,
+                "pixel_to_meter_ratio_x": float(self.pixel_to_meter_ratio_x) if self.pixel_to_meter_ratio_x else None,
+                "pixel_to_meter_ratio_y": float(self.pixel_to_meter_ratio_y) if self.pixel_to_meter_ratio_y else None,
                 "position_min_m": float(self.position_min) if self.position_min else None,
                 "position_max_m": float(self.position_max) if self.position_max else None
             },
