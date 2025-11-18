@@ -9,9 +9,8 @@ static const int SERVO_MAX = 500; // CCW 180 deg
 static const int SERVO_MIN = 100; // CW 0 deg
 static const int SERVO_MID = (ARM_MAX + SERVO_MIN) / 2;
 static const int PWM_FREQ = 50;
-int x = 100; // for testing, delete later
 bool newCommand = false;
-char receivedAngles[4]; // 3 chars and 1 null char
+byte receivedAngles[3];
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
@@ -32,19 +31,19 @@ void loop() {
 
     // read target angles from serial
     if (Serial.available() > 3) {
-        int bytesRead = Serial.readBytes(receivedAngles, 3);
-        receivedAngles[bytesRead] = '\0';
+        Serial.readBytes(receivedAngles, 3);
+        newCommand = true;
     }
 
-    Serial.println(receivedAngles);
+    // Serial.println(receivedAngles);
 
     // // update target angles for the servos
-    // if (newCommand) {
-    //     pwm.setPWM(SERVO1, 0, targetAngle[0]);
-    //     pwm.setPWM(SERVO2, 0, targetAngle[1]);
-    //     pwm.setPWM(SERVO3, 0, targetAngle[2]);
-    //     newCommand = false;
-    // }
+    if (newCommand) {
+        pwm.setPWM(SERVO1, 0, (int)receivedAngles[0]);
+        pwm.setPWM(SERVO2, 0, (int)receivedAngles[1]);
+        pwm.setPWM(SERVO3, 0, (int)receivedAngles[2]);
+        newCommand = false;
+    }
 
     // delay(10);
 }

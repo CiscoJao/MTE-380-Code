@@ -71,21 +71,22 @@ class BasicPIDController:
         if self.servo:
             temp = []
             for servo_angle in angles:
+                print(len(angles))
                 servo_angle = self.neutral_angle + servo_angle
                 servo_angle = int(np.clip(servo_angle, 0, 30))
 
                 servo_pwm = int((10/3) * servo_angle + 100)
-                print(servo_pwm)
                 temp.append(servo_pwm)
             try:
+                print("[CONTROL]: ", temp)
                 self.servo.write(bytes(temp))
             except Exception:
                 print("[SERVO] Send failed")
 
-    def update_pid(self, position, setpoint_xy, dt=0.033):
+    def update_pid(self, position, dt=0.033):
 
         pos_vec = np.array([position[0], position[1]])
-        set_vec = np.array([setpoint_xy[0], setpoint_xy[1]])
+        set_vec = np.array([self.setpoint_x, self.setpoint_y])
         pos_abc = self.M.dot(pos_vec)
         set_abc = self.M.dot(set_vec)
 
@@ -145,28 +146,25 @@ class BasicPIDController:
         if not self.connect_servo():
             print("[ERROR] No servo - running in simulation mode")
         self.start_time = time.time()
-        last_time = self.start_time
         while self.running:
             try:
                 # Wait for latest ball position from camera
                 position = self.position_queue.get(timeout=0.1)
 
-                now = time.time()
-                dt = now - last_time if last_time is not None else 0.033
-                last_time = now
-
                 setpoint_xy = (self.setpoint_x, self.setpoint_y)
                 # Compute control output using PID
-                control_output = self.update_pid(position, setpoint_xy, dt=dt)
+                control_output = self.update_pid(position)
                 # Send control command to servo (real or simulated)
+
+                print(control_output)
+
                 self.send_servo_angles(control_output)
                 # Log results for plotting
                 current_time = time.time() - self.start_time
                 self.time_log.append(current_time)
                 self.position_log.append(position)
-                self.setpoint_log.append(self.setpoint_xy)
+                self.setpoint_log.append(setpoint_xy)
                 self.control_log.append(control_output)
-                print(f"Pos: {position:.3f}m, Output: {control_output:.1f}°")
             except queue.Empty:
                 continue
             except Exception as e:
@@ -174,7 +172,7 @@ class BasicPIDController:
                 break
         if self.servo:
             # Return to neutral on exit
-            self.send_servo_angles(0)
+            self.send_servo_angles([0,0,0])
             self.servo.close()
 
     def create_gui(self):
@@ -217,25 +215,25 @@ class BasicPIDController:
         ttk.Label(self.root, text="Setpoint (meters)", font=("Arial", 12)).pack()
         pos_min = self.config['calibration']['position_min_m']
         pos_max = self.config['calibration']['position_max_m']
-        self.setpoint_var = tk.DoubleVar(value=self.setpoint_x)
+        self.setpoint_x_var = tk.DoubleVar(value=self.setpoint_x)
         setpoint_slider = ttk.Scale(self.root, from_=pos_min, to=pos_max,
-                                   variable=self.setpoint_var,
+                                   variable=self.setpoint_x_var,
                                    orient=tk.HORIZONTAL, length=500)
         setpoint_slider.pack(pady=5)
-        self.setpoint_label = ttk.Label(self.root, text=f"Setpoint: {self.setpoint_x:.3f}m", font=("Arial", 11))
-        self.setpoint_label.pack()
+        self.setpoint_x_label = ttk.Label(self.root, text=f"Setpoint: {self.setpoint_x:.3f}m", font=("Arial", 11))
+        self.setpoint_x_label.pack()
 
         # Setpoint slider
         ttk.Label(self.root, text="Setpoint (meters)", font=("Arial", 12)).pack()
         pos_min = self.config['calibration']['position_min_m']
         pos_max = self.config['calibration']['position_max_m']
-        self.setpoint_var = tk.DoubleVar(value=self.setpoint_y)
+        self.setpoint_y_var = tk.DoubleVar(value=self.setpoint_y)
         setpoint_slider = ttk.Scale(self.root, from_=pos_min, to=pos_max,
-                                   variable=self.setpoint_var,
+                                   variable=self.setpoint_y_var,
                                    orient=tk.HORIZONTAL, length=500)
         setpoint_slider.pack(pady=5)
-        self.setpoint_label = ttk.Label(self.root, text=f"Setpoint: {self.setpoint_y:.3f}m", font=("Arial", 11))
-        self.setpoint_label.pack()
+        self.setpoint_y_label = ttk.Label(self.root, text=f"Setpoint: {self.setpoint_y:.3f}m", font=("Arial", 11))
+        self.setpoint_y_label.pack()
 
         # Button group for actions
         button_frame = ttk.Frame(self.root)
