@@ -197,8 +197,8 @@ class SimpleAutoCalibrator:
         center_y = frame.shape[0] // 2
         pixel_offset = x - center_x
         
-        mx = (x - center_x) * self.pixel_to_meter_x
-        my = (y - center_   y) * self.pixel_to_meter_y
+        mx = (x - center_x) * self.pixel_to_meter_ratio_x
+        my = (y - center_y) * self.pixel_to_meter_ratio_y
 
         return (mx, my)
 
@@ -343,10 +343,10 @@ class SimpleAutoCalibrator:
                     cv2.circle(overlay, (int(x), int(y)), 3, (0, 255, 255), -1)
                     
                     # Show position if geometry calibration is complete
-                    if self.pixel_to_meter_ratio:
+                    if self.pixel_to_meter_ratio_x:
                         pos = self.detect_ball_position(frame)
                         if pos is not None:
-                            cv2.putText(overlay, f"Pos: {pos:.4f}m",
+                            cv2.putText(overlay, f"Pos: {pos[0]:.4f}m",
                                        (int(x)+20, int(y)+20),
                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
         
@@ -405,7 +405,7 @@ class SimpleAutoCalibrator:
                     print("[INFO] Color calibration complete. Click on beam endpoints.")
             elif key == ord('l') and self.phase == "limits":
                 # Start automatic limit finding
-                self.find_limits_automatically()
+                # self.find_limits_automatically()
                 self.phase = "complete"
             elif key == ord('s') and self.phase == "complete":
                 # Save configuration and exit

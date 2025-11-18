@@ -21,7 +21,7 @@ class BasicPIDController:
         self.Ki = 0.0
         self.Kd = 0.0
         # Scale factor for converting from pixels to meters
-        self.scale_factor = self.config['calibration']['pixel_to_meter_ratio'] * self.config['camera']['frame_width'] / 2
+        self.scale_factor = self.config['calibration']['pixel_to_meter_ratio_x'] * self.config['camera']['frame_width'] / 2
         # Servo port name and center angle
         self.servo_port = self.config['servo']['port']
         self.neutral_angle = self.config['servo']['neutral_angle']
