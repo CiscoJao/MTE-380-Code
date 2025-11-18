@@ -27,16 +27,6 @@ class BasicPIDController:
         self.neutral_angle = self.config['servo']['neutral_angle']
         self.servo = None
 
-        servo_cfg = self.config.get('servo', {})
-        self.servo_ports = servo_cfg.get('ports', None)
-        if self.servo_ports is None:
-            # fallback to single port (legacy)
-            single = servo_cfg.get('port', None)
-            self.servo_ports = [single] if single else []
-        self.neutral_angle = servo_cfg.get('neutral_angle', 15)
-        # will hold serial.Serial objects or None
-        self.servos = [None] * len(self.servo_ports)
-
         # Controller-internal state
         self.setpoint_x = 0.0
         self.setpoint_y = 0.0
@@ -65,49 +55,32 @@ class BasicPIDController:
             [-0.5, -np.sqrt(3)/2]
         ])
 
-    def connect_servo(self):
-        """Try to open serial connections to servos; return True if at least one opened."""
-        any_connected = False
-        for i, port in enumerate(self.servo_ports):
-            if not port:
-                self.servos[i] = None
-                continue
-            try:
-                s = serial.Serial(port, 9600, timeout=1)
-                time.sleep(2)
-                self.servos[i] = s
-                any_connected = True
-                print(f"[SERVO] Connected on {port}")
-            except Exception as e:
-                print(f"[SERVO] Failed to connect on {port}: {e}")
-                self.servos[i] = None
-        return any_connected
-
-    def send_servo_angle(self, angle):
-        """Send angle command to servo motor (clipped for safety)."""
-        if self.servo:
-            servo_angle = self.neutral_angle + angle
-            servo_angle = int(np.clip(servo_angle, 0, 30))
-            try:
-                servo_pwm = int((10/3) * servo_angle + 100)
-                print(servo_pwm)
-                self.servo.write(bytes([servo_pwm]))
-            except Exception:
-                print("[SERVO] Send failed")
+    def connect_servo(self): 
+        """Try to open serial connection to servo, return True if success.""" 
+        try: 
+            self.servo = serial.Serial(self.servo_port, 9600) 
+            time.sleep(2) 
+            print("[SERVO] Connected") 
+            return True 
+        except Exception as e: 
+            print(f"[SERVO] Failed: {e}") 
+            return False
 
     def send_servo_angles(self, angles):
-        # If user has configured exactly 3 servos, send each axis to each servo.
-        if len(self.servos) >= self.num_axes:
-            for i in range(self.num_axes):
-                if self.servos[i]:
-                    self.send_servo_angle(self.servos[i], angles[i])
-        elif len(self.servos) == 1 and self.servos[0]:
-            # legacy single-servo: average or sum of axis commands (clipped)
-            combined = float(np.clip(np.mean(angles), -self.output_limit, self.output_limit))
-            self.send_servo_angle(self.servos[0], combined)
-        else:
-            # No servo available (simulation), just print
-            print("[SERVO] (sim) Angles:", ["{:.2f}".format(a) for a in angles])
+        """Send angle command to servo motor (clipped for safety)."""
+        if self.servo:
+            temp = []
+            for servo_angle in angles:
+                servo_angle = self.neutral_angle + servo_angle
+                servo_angle = int(np.clip(servo_angle, 0, 30))
+
+                servo_pwm = int((10/3) * servo_angle + 100)
+                print(servo_pwm)
+                temp.append(servo_pwm)
+            try:
+                self.servo.write(bytes(temp))
+            except Exception:
+                print("[SERVO] Send failed")
 
     def update_pid(self, position, setpoint_xy, dt=0.033):
 
@@ -186,7 +159,7 @@ class BasicPIDController:
                 # Compute control output using PID
                 control_output = self.update_pid(position, setpoint_xy, dt=dt)
                 # Send control command to servo (real or simulated)
-                self.send_servo_angle(control_output)
+                self.send_servo_angles(control_output)
                 # Log results for plotting
                 current_time = time.time() - self.start_time
                 self.time_log.append(current_time)
@@ -201,7 +174,7 @@ class BasicPIDController:
                 break
         if self.servo:
             # Return to neutral on exit
-            self.send_servo_angle(0)
+            self.send_servo_angles(0)
             self.servo.close()
 
     def create_gui(self):
