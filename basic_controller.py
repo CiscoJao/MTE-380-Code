@@ -73,7 +73,6 @@ class BasicPIDController:
         if self.servo:
             temp = []
             for servo_angle in angles:
-                print(len(angles))
                 servo_angle = self.neutral_angle + servo_angle
                 servo_angle = int(np.clip(servo_angle, 0, 30))
 
@@ -96,18 +95,16 @@ class BasicPIDController:
         print("pos_vec = ", pos_vec)
         print("set_abc = ", set_abc)
 
-
         outputs = np.zeros(self.num_axes, dtype=float)
         for i in range(self.num_axes):
             error =  pos_abc[i] - set_abc[i] # Compute error
 
             print("error = ", error)
 
-            error = error * 40  # Scale error for easier tuning (if needed)
+            error = error * 1  # Scale error for easier tuning (if needed)
 
             # Proportional term
             P = self.Kp_arr[i] * error
-            print(self.Kp_arr[i])
             # Integral term accumulation
             self.integral[i] += error * dt
             I = self.Ki_arr[i] * self.integral[i]
@@ -118,7 +115,6 @@ class BasicPIDController:
             # PID output (limit to safe beam range)
             output = P + I + D
             output = np.clip(output, -15, 15)
-            print(error)
             outputs[i] = output
         return outputs
 
@@ -173,8 +169,6 @@ class BasicPIDController:
                 control_output = self.update_pid(position, dt)
                 # Send control command to servo (real or simulated)
 
-                print(control_output)
-
                 self.send_servo_angles(control_output)
                 # Log results for plotting
                 current_time = time.time() - self.start_time
@@ -204,7 +198,7 @@ class BasicPIDController:
         # Kp slider
         ttk.Label(self.root, text="Kp (Proportional)", font=("Arial", 12)).pack()
         self.kp_var = tk.DoubleVar(value=self.Kp)
-        kp_slider = ttk.Scale(self.root, from_=0, to=2, variable=self.kp_var,
+        kp_slider = ttk.Scale(self.root, from_=0, to=50, variable=self.kp_var,
                               orient=tk.HORIZONTAL, length=500)
         kp_slider.pack(pady=5)
         self.kp_label = ttk.Label(self.root, text=f"Kp: {self.Kp:.1f}", font=("Arial", 11))
@@ -222,7 +216,7 @@ class BasicPIDController:
         # Kd slider
         ttk.Label(self.root, text="Kd (Derivative)", font=("Arial", 12)).pack()
         self.kd_var = tk.DoubleVar(value=self.Kd)
-        kd_slider = ttk.Scale(self.root, from_=0, to=10, variable=self.kd_var,
+        kd_slider = ttk.Scale(self.root, from_=0, to=30, variable=self.kd_var,
                               orient=tk.HORIZONTAL, length=500)
         kd_slider.pack(pady=5)
         self.kd_label = ttk.Label(self.root, text=f"Kd: {self.Kd:.1f}", font=("Arial", 11))

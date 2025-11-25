@@ -36,10 +36,12 @@ class BallDetector:
                         self.upper_hsv = np.array(config['ball_detection']['upper_hsv'], dtype=np.uint8)
                 
                 # Extract scale factor for position conversion from pixels to meters
-                if 'calibration' in config and 'pixel_to_meter_ratio' in config['calibration']:
-                    if config['calibration']['pixel_to_meter_ratio']:
-                        self.scale_factor_x = config_file['calibration']['pixel_to_meter_ratio_x'] * self.config['camera']['frame_width'] / 2
-                        self.scale_factor_y = config_file['calibration']['pixel_to_meter_ratio_y'] * self.config['camera']['frame_height'] / 2
+                if 'calibration' in config and 'pixel_to_meter_ratio_x' in config['calibration'] and 'pixel_to_meter_ratio_y' in config['calibration']:
+                    if config['calibration']['pixel_to_meter_ratio_x']:
+                        self.scale_factor_x = config['calibration']['pixel_to_meter_ratio_x'] * config['camera']['frame_width'] / 2
+
+                    if config['calibration']['pixel_to_meter_ratio_y']:
+                        self.scale_factor_y = config['calibration']['pixel_to_meter_ratio_y'] * config['camera']['frame_height'] / 2
 
                 
                 # print(f"[BALL_DETECT] Loaded HSV bounds: {self.lower_hsv} to {self.upper_hsv}")
@@ -92,11 +94,9 @@ class BallDetector:
         center_x = frame.shape[1] // 2  # Frame center x-coordinate
         center_y = frame.shape[0] // 2
 
-        print("center_x:", center_x)
-        print("center_y:", center_y)
-        
         normalized_x = (x - center_x) / center_x  # Normalize to -1 to +1 range
         normalized_y = (y - center_y) / center_y  # Normalize to -1 to +1 range
+
         position_m_x = normalized_x * self.scale_factor_x  # Convert to meters
         position_m_y = normalized_y * self.scale_factor_y  # Convert to meters
         
@@ -134,11 +134,11 @@ class BallDetector:
             
             if show_info:
                 # Display ball position information
-                cv2.putText(overlay, f"x: {center[0]}", (center[0] - 30, center[1] - 40),
+                cv2.putText(overlay, f"x: {center[0]}", (center[0] - 30, center[1] - 60),
                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
-                cv2.putText(overlay, f"pos: {position_m[0]:.4f}m", (center[0] - 40, center[1] - 20),
+                cv2.putText(overlay, f"x_pos: {position_m[0]:.4f}m", (center[0] - 40, center[1] - 20),
                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
-                cv2.putText(overlay, f"pos: {position_m[1]:.4f}m", (center[0] - 40, center[1] - 40),
+                cv2.putText(overlay, f"y_pos: {position_m[1]:.4f}m", (center[0] - 40, center[1] - 40),
                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
         
         return overlay, found, position_m
@@ -194,7 +194,7 @@ def detect_ball_y(frame):
     
     # Get detection results with visual overlay
     vis_frame, found, position_m = detector.draw_detection(frame)
-    
+
     if found:
         # Convert back to normalized coordinates for legacy compatibility
         y_normalized = position_m[1] / detector.scale_factor_y if detector.scale_factor_y != 0 else 0.0

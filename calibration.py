@@ -224,18 +224,23 @@ class SimpleAutoCalibrator:
         N = self.neutral_angle
         tilt = 15  # degrees of tilt to test
 
+        self.send_servo_angles([N, N, N])
+
         # X-direction tilt
         x_tilts = [
-            [N - tilt, N + tilt, N],   # -X tilt
+            [N - tilt, N + tilt, N + tilt],   # -X tilt
             [N, N, N],                 # neutral
-            [N + tilt, N - tilt, N]    # +X tilt
+            [N + tilt, N - tilt, N - tilt]    # +X tilt
         ]
 
         # Y-direction tilt
         y_tilts = [
-            [N, N - tilt, N + tilt],   # -Y tilt
+            [N, N + tilt, N - tilt],   # -Y tilt
+            [N, N + tilt, N - tilt],   # -Y tilt
             [N, N, N],                 # neutral
-            [N, N + tilt, N - tilt]    # +Y tilt
+            [N, N, N],                 # neutral
+            [N, N - tilt, N + tilt],    # +Y tilt
+            [N, N - tilt, N + tilt]    # +Y tilt
         ]
         
         def measure_position(servo_angles):
@@ -245,7 +250,7 @@ class SimpleAutoCalibrator:
             samples = []
             start = time.time()
 
-            while time.time() - start < 1.0:
+            while time.time() - start < 2.0:
                 ret, frame = self.cap.read()
                 if ret:
                     pos = self.detect_ball_position(frame)
@@ -275,6 +280,8 @@ class SimpleAutoCalibrator:
 
         y_positions = []
 
+        self.send_servo_angles([N, N, N])
+
         for angles in y_tilts:
             _, avg_y = measure_position(angles)
             if avg_y is not None:
@@ -290,7 +297,6 @@ class SimpleAutoCalibrator:
         #
         # --- 5. Return platform to neutral ---
         #
-        self.send_servo_angles([N, N, N])
 
     def save_config(self):
         """Save all calibration results to config.json file."""
@@ -398,8 +404,8 @@ class SimpleAutoCalibrator:
                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
         
         # Show final results if limit calibration is complete
-        if self.position_min is not None and self.position_max is not None:
-            cv2.putText(overlay, f"Limits: {self.position_min:.4f}m to {self.position_max:.4f}m",
+        if self.position_x_min is not None and self.position_x_min is not None:
+            cv2.putText(overlay, f"Limits: {self.position_x_min:.4f}m to {self.position_x_min:.4f}m",
                        (10, overlay.shape[0] - 20),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
         
