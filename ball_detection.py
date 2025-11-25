@@ -19,8 +19,9 @@ class BallDetector:
         # Default HSV bounds for orange ball detection
         self.lower_hsv = np.array([5, 150, 150], dtype=np.uint8)  # Orange lower bound
         self.upper_hsv = np.array([20, 255, 255], dtype=np.uint8)  # Orange upper bound
-        self.scale_factor = 1.0  # Conversion factor from normalized coords to meters
-        
+        self.scale_factor_x = 1        
+        self.scale_factor_y = 1
+
         # Load configuration from file if it exists
         if os.path.exists(config_file):
             try:
@@ -37,8 +38,9 @@ class BallDetector:
                 # Extract scale factor for position conversion from pixels to meters
                 if 'calibration' in config and 'pixel_to_meter_ratio' in config['calibration']:
                     if config['calibration']['pixel_to_meter_ratio']:
-                        frame_width = config.get('camera', {}).get('frame_width', 640)
-                        self.scale_factor = config['calibration']['pixel_to_meter_ratio'] * (frame_width / 2)
+                        self.scale_factor_x = config_file['calibration']['pixel_to_meter_ratio_x'] * self.config['camera']['frame_width'] / 2
+                        self.scale_factor_y = config_file['calibration']['pixel_to_meter_ratio_y'] * self.config['camera']['frame_height'] / 2
+
                 
                 # print(f"[BALL_DETECT] Loaded HSV bounds: {self.lower_hsv} to {self.upper_hsv}")
                 # print(f"[BALL_DETECT] Scale factor: {self.scale_factor:.6f} m/normalized_unit")
@@ -89,10 +91,14 @@ class BallDetector:
         # Convert pixel position to meters from center
         center_x = frame.shape[1] // 2  # Frame center x-coordinate
         center_y = frame.shape[0] // 2
+
+        print("center_x:", center_x)
+        print("center_y:", center_y)
+        
         normalized_x = (x - center_x) / center_x  # Normalize to -1 to +1 range
         normalized_y = (y - center_y) / center_y  # Normalize to -1 to +1 range
-        position_m_x = normalized_x * self.scale_factor  # Convert to meters
-        position_m_y = normalized_y * self.scale_factor  # Convert to meters
+        position_m_x = normalized_x * self.scale_factor_x  # Convert to meters
+        position_m_y = normalized_y * self.scale_factor_y  # Convert to meters
         
         return True, (int(x), int(y)), radius, (position_m_x, position_m_y)
 
@@ -160,7 +166,7 @@ def detect_ball_x(frame):
     
     if found:
         # Convert back to normalized coordinates for legacy compatibility
-        x_normalized = position_m[0] / detector.scale_factor if detector.scale_factor != 0 else 0.0
+        x_normalized = position_m[0] / detector.scale_factor_x if detector.scale_factor_x != 0 else 0.0
         x_normalized = np.clip(x_normalized, -1.0, 1.0)  # Ensure within bounds
     else:
         x_normalized = 0.0
@@ -191,7 +197,7 @@ def detect_ball_y(frame):
     
     if found:
         # Convert back to normalized coordinates for legacy compatibility
-        y_normalized = position_m[1] / detector.scale_factor if detector.scale_factor != 0 else 0.0
+        y_normalized = position_m[1] / detector.scale_factor_y if detector.scale_factor_y != 0 else 0.0
         y_normalized = np.clip(y_normalized, -1.0, 1.0)  # Ensure within bounds
     else:
         y_normalized = 0.0

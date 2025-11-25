@@ -136,8 +136,8 @@ class BasicPIDController:
             found_y, y_normalized, vis_frame = detect_ball_y(frame)
             if found_x and found_y:
                 # Convert normalized to meters using scale
-                position_m = (x_normalized * self.scale_factor_x, y_normalized * self.scale_factor_y)
                 print("x_normalized = ", x_normalized)
+                position_m = (x_normalized * self.scale_factor_x, y_normalized * self.scale_factor_y)
 
                 # Always keep latest measurement only
                 try:

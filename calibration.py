@@ -63,16 +63,21 @@ class SimpleAutoCalibrator:
             print("[SERVO] Failed to connect - limits will be estimated")
             return False
 
-    def send_servo_angle(self, angle):
-        """Send angle command to servo motor with safety clipping.
-        
-        Args:
-            angle (float): Desired servo angle in degrees
-        """
+    def send_servo_angles(self, angles):
+        """Send angle command to servo motor (clipped for safety)."""
         if self.servo:
-            # Clip angle to safe range and send as byte
-            angle = int(np.clip(angle, self.min_angle, self.max_angle))
-            self.servo.write(bytes([angle]))
+            temp = []
+            for servo_angle in angles:
+                print(servo_angle)
+                servo_angle = int(np.clip(servo_angle, 0, 30))
+
+                servo_pwm = int((10/3) * servo_angle + 100)
+                temp.append(servo_pwm)
+            try:
+                print("[CONTROL]: ", temp)
+                self.servo.write(bytes(temp))
+            except Exception:
+                print("[SERVO] Send failed")
 
     def mouse_callback(self, event, x, y, flags, param):
         """Handle mouse click events for interactive calibration.
@@ -212,14 +217,20 @@ class SimpleAutoCalibrator:
             return
         
         print("[LIMITS] Finding limits with servo...")
-        positions = []
+        positions_x = []
+        positions_y = []
         
+        self.send_servo_angles([0, 0, 0])
+
         # Test servo at different angles to find position range
         test_angles = [self.neutral_angle - 15, self.neutral_angle, self.neutral_angle + 15]
         
         for angle in test_angles:
             # Move servo to test angle
-            self.send_servo_angle(angle)
+            if angle == self.neutral_angle + 15:
+                self.send_servo_angles([angle, 0, 0])
+            else:
+                self.send_servo_angles([angle, 0, 0])
             time.sleep(2)  # Wait for ball to settle
             
             # Collect multiple position measurements
@@ -235,17 +246,17 @@ class SimpleAutoCalibrator:
             
             # Calculate average position for this angle
             if angle_positions:
-                avg_pos = np.mean(angle_positions)
-                positions.append(avg_pos)
+                avg_pos = sum(t[0] for t in angle_positions) / len(angle_positions)
+                positions_x.append(avg_pos)
                 print(f"[LIMITS] Angle {angle}: {avg_pos:.4f}m")
         
         # Return servo to neutral position
-        self.send_servo_angle(self.neutral_angle)
+        # self.send_servo_angles([15, 15, 15])
         
         # Determine position limits from collected data
-        if len(positions) >= 2:
-            self.position_min = min(positions)
-            self.position_max = max(positions)
+        if len(positions_x) >= 2:
+            self.position_min = min(positions_x)
+            self.position_max = max(positions_x)
             print(f"[LIMITS] Range: {self.position_min:.4f}m to {self.position_max:.4f}m")
         else:
             print("[LIMITS] Failed to find limits")
@@ -408,7 +419,7 @@ class SimpleAutoCalibrator:
                     print("[INFO] Color calibration complete. Click on beam endpoints.")
             elif key == ord('l') and self.phase == "limits":
                 # Start automatic limit finding
-                # self.find_limits_automatically()
+                self.find_limits_automatically()
                 self.phase = "complete"
             elif key == ord('s') and self.phase == "complete":
                 # Save configuration and exit
