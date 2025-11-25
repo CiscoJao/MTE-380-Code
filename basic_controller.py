@@ -230,8 +230,8 @@ class BasicPIDController:
 
         # Setpoint slider
         ttk.Label(self.root, text="Setpoint (meters)", font=("Arial", 12)).pack()
-        pos_min = self.config['calibration']['position_min_m']
-        pos_max = self.config['calibration']['position_max_m']
+        pos_min = self.config['calibration']['position_x_min_m']
+        pos_max = self.config['calibration']['position_x_max_m']
         self.setpoint_x_var = tk.DoubleVar(value=self.setpoint_x)
         setpoint_slider = ttk.Scale(self.root, from_=pos_min, to=pos_max,
                                    variable=self.setpoint_x_var,
@@ -242,8 +242,8 @@ class BasicPIDController:
 
         # Setpoint slider
         ttk.Label(self.root, text="Setpoint (meters)", font=("Arial", 12)).pack()
-        pos_min = self.config['calibration']['position_min_m']
-        pos_max = self.config['calibration']['position_max_m']
+        pos_min = self.config['calibration']['position_y_min_m']
+        pos_max = self.config['calibration']['position_y_max_m']
         self.setpoint_y_var = tk.DoubleVar(value=self.setpoint_y)
         setpoint_slider = ttk.Scale(self.root, from_=pos_min, to=pos_max,
                                    variable=self.setpoint_y_var,

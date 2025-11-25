@@ -45,8 +45,10 @@ class SimpleAutoCalibrator:
         self.neutral_angle = int((self.max_angle + self.min_angle) / 2)
         
         # Position limit results
-        self.position_min = None  # Minimum ball position in meters
-        self.position_max = None  # Maximum ball position in meters
+        self.position_x_min = None  # Minimum ball position in meters
+        self.position_x_max = None  # Maximum ball position in meters
+        self.position_y_min = None
+        self.position_y_max = None
 
     def connect_servo(self):
         """Establish serial connection to servo motor for automated limit finding.
@@ -210,56 +212,85 @@ class SimpleAutoCalibrator:
     def find_limits_automatically(self):
         """Use servo motor to automatically find ball position limits."""
         if not self.servo:
-            # Estimate limits without servo if connection failed
-            self.position_min = -self.PLATFORM_DIAM / 2
-            self.position_max = self.PLATFORM_DIAM / 2
+            self.position_x_min = -self.PLATFORM_DIAM / 2
+            self.position_x_max =  self.PLATFORM_DIAM / 2
+            self.position_y_min = -self.PLATFORM_DIAM / 2
+            self.position_y_max =  self.PLATFORM_DIAM / 2
             print("[LIMITS] Estimated without servo")
             return
         
         print("[LIMITS] Finding limits with servo...")
-        positions_x = []
-        positions_y = []
         
-        self.send_servo_angles([0, 0, 0])
+        N = self.neutral_angle
+        tilt = 15  # degrees of tilt to test
 
-        # Test servo at different angles to find position range
-        test_angles = [self.neutral_angle - 15, self.neutral_angle, self.neutral_angle + 15]
+        # X-direction tilt
+        x_tilts = [
+            [N - tilt, N + tilt, N],   # -X tilt
+            [N, N, N],                 # neutral
+            [N + tilt, N - tilt, N]    # +X tilt
+        ]
+
+        # Y-direction tilt
+        y_tilts = [
+            [N, N - tilt, N + tilt],   # -Y tilt
+            [N, N, N],                 # neutral
+            [N, N + tilt, N - tilt]    # +Y tilt
+        ]
         
-        for angle in test_angles:
-            # Move servo to test angle
-            if angle == self.neutral_angle + 15:
-                self.send_servo_angles([angle, 0, 0])
-            else:
-                self.send_servo_angles([angle, 0, 0])
-            time.sleep(2)  # Wait for ball to settle
-            
-            # Collect multiple position measurements
-            angle_positions = []
-            start_time = time.time()
-            while time.time() - start_time < 1.0:
+        def measure_position(servo_angles):
+            self.send_servo_angles(servo_angles)
+            time.sleep(2)
+
+            samples = []
+            start = time.time()
+
+            while time.time() - start < 1.0:
                 ret, frame = self.cap.read()
                 if ret:
                     pos = self.detect_ball_position(frame)
                     if pos is not None:
-                        angle_positions.append(pos)
+                        samples.append(pos)
                 time.sleep(0.05)
-            
-            # Calculate average position for this angle
-            if angle_positions:
-                avg_pos = sum(t[0] for t in angle_positions) / len(angle_positions)
-                positions_x.append(avg_pos)
-                print(f"[LIMITS] Angle {angle}: {avg_pos:.4f}m")
+
+            if samples:
+                avg_x = sum(p[0] for p in samples) / len(samples)
+                avg_y = sum(p[1] for p in samples) / len(samples)
+                return avg_x, avg_y
+            return None, None
         
-        # Return servo to neutral position
-        # self.send_servo_angles([15, 15, 15])
-        
-        # Determine position limits from collected data
-        if len(positions_x) >= 2:
-            self.position_min = min(positions_x)
-            self.position_max = max(positions_x)
-            print(f"[LIMITS] Range: {self.position_min:.4f}m to {self.position_max:.4f}m")
+        x_positions = []
+
+        for angles in x_tilts:
+            avg_x, _ = measure_position(angles)
+            if avg_x is not None:
+                x_positions.append(avg_x)
+
+        if len(x_positions) >= 2:
+            self.position_x_min = min(x_positions)
+            self.position_x_max = max(x_positions)
+            print(f"[LIMITS][X] {self.position_x_min:.4f} m to {self.position_x_max:.4f} m")
         else:
-            print("[LIMITS] Failed to find limits")
+            print("[LIMITS][X] Failed to determine limits")
+
+        y_positions = []
+
+        for angles in y_tilts:
+            _, avg_y = measure_position(angles)
+            if avg_y is not None:
+                y_positions.append(avg_y)
+
+        if len(y_positions) >= 2:
+            self.position_y_min = min(y_positions)
+            self.position_y_max = max(y_positions)
+            print(f"[LIMITS][Y] {self.position_y_min:.4f} m to {self.position_y_max:.4f} m")
+        else:
+            print("[LIMITS][Y] Failed to determine limits")
+
+        #
+        # --- 5. Return platform to neutral ---
+        #
+        self.send_servo_angles([N, N, N])
 
     def save_config(self):
         """Save all calibration results to config.json file."""
@@ -278,8 +309,10 @@ class SimpleAutoCalibrator:
             "calibration": {
                 "pixel_to_meter_ratio_x": float(self.pixel_to_meter_ratio_x) if self.pixel_to_meter_ratio_x else None,
                 "pixel_to_meter_ratio_y": float(self.pixel_to_meter_ratio_y) if self.pixel_to_meter_ratio_y else None,
-                "position_min_m": float(self.position_min) if self.position_min else None,
-                "position_max_m": float(self.position_max) if self.position_max else None
+                "position_x_min_m": float(self.position_x_min) if self.position_x_min else None,
+                "position_x_max_m": float(self.position_x_max) if self.position_x_max else None,
+                "position_y_min_m": float(self.position_y_min) if self.position_y_min else None,
+                "position_y_max_m": float(self.position_y_max) if self.position_y_max else None
             },
             "servo": {
                 "port": str(self.servo_port),
