@@ -99,14 +99,17 @@ class BasicPIDController:
         for i in range(self.num_axes):
             error =  pos_abc[i] - set_abc[i] # Compute error
 
-            print("error = ", error)
-
-            error = error * 1  # Scale error for easier tuning (if needed)
+            # error = error * 1  # Scale error for easier tuning (if needed)
 
             # Proportional term
             P = self.Kp_arr[i] * error
+
             # Integral term accumulation
-            self.integral[i] += error * dt
+            if abs(error) < 0.01:
+                self.integral[i] = 0.0
+            else:
+                self.integral[i] += error * dt
+
             I = self.Ki_arr[i] * self.integral[i]
             # Derivative term calculation
             derivative = (error - self.prev_error[i]) / dt
@@ -296,21 +299,58 @@ class BasicPIDController:
             print("[PLOT] No data to plot")
             return
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
-        # Ball position trace
-        ax1.plot(self.time_log, self.position_log, label="Ball Position", linewidth=2)
-        ax1.plot(self.time_log, self.setpoint_log, label="Setpoint",
+        fig, (ax3, ax4, ax5) = plt.subplots(3, 1, figsize=(10, 8))
+
+        position_log_x = [pos[0] for pos in self.position_log]
+        position_log_y = [pos[1] for pos in self.position_log]
+
+        setpoint_log_x = [sp[0] for sp in self.setpoint_log]
+        setpoint_log_y = [sp[1] for sp in self.setpoint_log]
+
+        control_output_a = [ctrl[0] for ctrl in self.control_log]
+        control_output_b = [ctrl[1] for ctrl in self.control_log]
+        control_output_c = [ctrl[2] for ctrl in self.control_log]
+        
+        # Ball position X trace
+        ax1.plot(self.time_log, position_log_x, label="Ball Position", linewidth=2)
+        ax1.plot(self.time_log, setpoint_log_x, label="Setpoint",
                  linestyle="--", linewidth=2)
-        ax1.set_ylabel("Position (m)")
+        ax1.set_ylabel("X Position (m)")
         ax1.set_title(f"Basic PID Control (Kp={self.Kp:.1f}, Ki={self.Ki:.1f}, Kd={self.Kd:.1f})")
         ax1.legend()
         ax1.grid(True, alpha=0.3)
-        # Control output trace
-        ax2.plot(self.time_log, self.control_log, label="Control Output",
-                 color="orange", linewidth=2)
-        ax2.set_xlabel("Time (s)")
-        ax2.set_ylabel("Beam Angle (degrees)")
+
+        # Ball position Y trace
+        ax2.plot(self.time_log, position_log_y, label="Ball Position", linewidth=2)
+        ax2.plot(self.time_log, setpoint_log_y, label="Setpoint",
+                 linestyle="--", linewidth=2)
+        ax2.set_ylabel("Y Position (m)")
+        ax2.set_title(f"Basic PID Control (Kp={self.Kp:.1f}, Ki={self.Ki:.1f}, Kd={self.Kd:.1f})")
         ax2.legend()
         ax2.grid(True, alpha=0.3)
+
+        # Control output trace
+        ax3.plot(self.time_log, control_output_a, label="Control Output A",
+                 color="orange", linewidth=2)
+        ax3.set_xlabel("Time (s)")
+        ax3.set_ylabel("Motor A Angle (degrees)")
+        ax3.legend()
+        ax3.grid(True, alpha=0.3)
+
+        ax4.plot(self.time_log, control_output_b, label="Control Output B",
+                 color="green", linewidth=2)
+        ax4.set_xlabel("Time (s)")
+        ax4.set_ylabel("Motor B Angle (degrees)")
+        ax4.legend()
+        ax4.grid(True, alpha=0.3)
+
+        ax5.plot(self.time_log, control_output_c, label="Control Output C",
+            color="red", linewidth=2)
+        ax5.set_xlabel("Time (s)")
+        ax5.set_ylabel("Motor C Angle (degrees)")
+        ax5.legend()
+        ax5.grid(True, alpha=0.3)
+
         plt.tight_layout()
         plt.show()
 
