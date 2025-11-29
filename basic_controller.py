@@ -92,24 +92,20 @@ class BasicPIDController:
         set_abc = self.M.dot(set_vec)
 
         print("POSITION AND SETPOINT!!!!!!!!!")
-        print("pos_vec = ", pos_vec)
+        print("pos_vec = ", pos_abc)
         print("set_abc = ", set_abc)
 
         outputs = np.zeros(self.num_axes, dtype=float)
         for i in range(self.num_axes):
             error =  pos_abc[i] - set_abc[i] # Compute error
-
+            error = self.apply_deadzone(error, 0.008)
+            
             # error = error * 1  # Scale error for easier tuning (if needed)
 
             # Proportional term
             P = self.Kp_arr[i] * error
-
             # Integral term accumulation
-            if abs(error) < 0.01:
-                self.integral[i] = 0.0
-            else:
-                self.integral[i] += error * dt
-
+            self.integral[i] += error * dt
             I = self.Ki_arr[i] * self.integral[i]
             # Derivative term calculation
             derivative = (error - self.prev_error[i]) / dt
@@ -118,8 +114,32 @@ class BasicPIDController:
             # PID output (limit to safe beam range)
             output = P + I + D
             output = np.clip(output, -15, 15)
+            print("PID output before stiction = ", output)
+            output = self.apply_stiction_comp(
+                output, 
+                stiction_threshold=0.1, 
+                stiction_comp=2.0)
             outputs[i] = output
+        
+        print("Output After Stiction = ", outputs)
+
         return outputs
+
+    def apply_deadzone(self, value, deadzone_threshold):
+        if abs(value) < deadzone_threshold:
+            return 0.0
+        return value
+
+    def apply_stiction_comp(self, value, stiction_threshold, stiction_comp):
+        if abs(value) < stiction_threshold:
+            if value > 0:
+                value += stiction_comp
+            elif value < 0:
+                value -= stiction_comp
+            else:
+                value = 0.0
+        return value
+
 
     def camera_thread(self):
         """Dedicated thread for video capture and ball detection."""
@@ -135,7 +155,6 @@ class BasicPIDController:
             found_y, y_normalized, vis_frame = detect_ball_y(frame)
             if found_x and found_y:
                 # Convert normalized to meters using scale
-                print("x_normalized = ", x_normalized)
                 position_m = (x_normalized * self.scale_factor_x, y_normalized * self.scale_factor_y)
 
                 # Always keep latest measurement only
